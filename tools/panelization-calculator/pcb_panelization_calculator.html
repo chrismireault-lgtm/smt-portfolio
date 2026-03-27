@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PCB Panelization Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0e14;
+    --surface: #131720;
+    --surface2: #1a2030;
+    --border: #2a3348;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --warn: #f59e0b;
+    --text: #c8d4e8;
+    --text-dim: #5a6a85;
+    --text-bright: #e8f0ff;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Barlow', sans-serif;
+    --board-fill: rgba(59,130,246,0.12);
+    --board-stroke: #3b82f6;
+    --panel-fill: rgba(0,212,170,0.04);
+    --rail-fill: rgba(245,158,11,0.08);
+    --fid-color: #f59e0b;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px;
+    border: 2px solid var(--accent);
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .logo-mark::after {
+    content:'';
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--accent);
+    transform: rotate(45deg);
+  }
+  header h1 { font-family: var(--mono); font-size: 15px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+  header span { font-size: 11px; color: var(--text-dim); margin-left: 4px; }
+  .unit-toggle { margin-left: auto; display: flex; gap: 0; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .unit-toggle button {
+    background: transparent; border: none; padding: 6px 14px; cursor: pointer;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim); transition: all .15s;
+  }
+  .unit-toggle button.active { background: var(--accent); color: #000; font-weight: bold; }
+
+  /* ── LAYOUT ── */
+  .workspace {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto auto;
+    gap: 0;
+    min-height: calc(100vh - 61px);
+  }
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 0;
+    overflow-y: auto;
+    grid-row: 1 / 3;
+  }
+  .main-canvas { padding: 20px; background: var(--bg); }
+  .main-output { padding: 0 20px 20px; background: var(--bg); border-top: 1px solid var(--border); }
+
+  /* ── SIDEBAR SECTIONS ── */
+  .section {
+    border-bottom: 1px solid var(--border);
+  }
+  .section-header {
+    padding: 11px 16px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-transform: uppercase;
+    background: var(--surface2);
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; user-select: none;
+  }
+  .section-header .chevron { margin-left: auto; transition: transform .2s; }
+  .section-header.collapsed .chevron { transform: rotate(-90deg); }
+  .section-body { padding: 14px 16px; }
+  .section-body.hidden { display: none; }
+
+  /* ── FORM CONTROLS ── */
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 5px; letter-spacing: .5px; }
+  label span.hint { font-size: 10px; color: #3b5070; margin-left: 6px; }
+  .input-row { display: flex; gap: 8px; }
+  .input-row input { flex: 1; }
+  input[type=number], input[type=text] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 7px 10px;
+    color: var(--text-bright);
+    font-family: var(--mono);
+    font-size: 13px;
+    transition: border-color .15s;
+    -moz-appearance: textfield;
+  }
+  input[type=number]::-webkit-inner-spin-button { display: none; }
+  input:focus { outline: none; border-color: var(--accent); }
+  .unit-label {
+    display: flex; align-items: center;
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    padding: 0 8px; border: 1px solid var(--border); border-radius: 3px;
+    background: var(--surface2); white-space: nowrap;
+  }
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .checkbox-row:last-child { margin-bottom: 0; }
+  input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+  .checkbox-row label { margin: 0; color: var(--text); font-size: 12px; cursor: pointer; }
+
+  .radio-group { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+  .radio-group label {
+    flex: 1; text-align: center; padding: 7px 4px;
+    cursor: pointer; font-size: 12px; color: var(--text-dim);
+    background: var(--bg); transition: all .15s; margin: 0;
+    border-right: 1px solid var(--border);
+  }
+  .radio-group label:last-child { border-right: none; }
+  .radio-group input[type=radio] { display: none; }
+  .radio-group input[type=radio]:checked + label { background: var(--accent2); color: #fff; }
+
+  .sub-field { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+
+  /* ── GENERATE BUTTON ── */
+  .gen-wrap { padding: 16px; }
+  .btn-generate {
+    width: 100%; padding: 12px;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 3px; cursor: pointer;
+    font-family: var(--mono); font-size: 13px; font-weight: bold;
+    letter-spacing: 2px; text-transform: uppercase;
+    transition: all .15s;
+  }
+  .btn-generate:hover { background: #00f5c0; box-shadow: 0 0 18px rgba(0,212,170,.4); }
+  .btn-generate:active { transform: scale(.98); }
+
+  /* ── CANVAS ── */
+  .canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    position: relative;
+    overflow: hidden;
+  }
+  .canvas-placeholder {
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-align: center;
+  }
+  .canvas-placeholder p:last-child { font-size: 10px; margin-top: 6px; color: #3b5070; }
+  canvas { max-width: 100%; max-height: 520px; }
+  .canvas-stats {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(11,14,20,.85);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.8;
+    min-width: 160px;
+  }
+  .canvas-stats .stat-label { color: var(--text-dim); }
+  .canvas-stats .stat-val { color: var(--accent); float: right; margin-left: 16px; }
+
+  /* ── OUTPUT TABLE ── */
+  .output-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 0 12px;
+  }
+  .output-header h2 { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--accent); text-transform: uppercase; }
+  .btn-csv {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 6px 14px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all .15s;
+  }
+  .btn-csv:hover { background: rgba(0,212,170,.1); }
+  .btn-csv:disabled { opacity: .3; cursor: default; }
+
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  thead th {
+    background: var(--surface2);
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody tr:hover { background: rgba(255,255,255,.02); }
+  tbody td {
+    padding: 7px 14px;
+    border-bottom: 1px solid rgba(42,51,72,.5);
+    color: var(--text);
+  }
+  tbody td:first-child { color: var(--text-dim); }
+  tbody td.val { color: var(--accent); }
+  .empty-table { text-align: center; padding: 24px; color: var(--text-dim); font-family: var(--mono); font-size: 11px; }
+
+  /* ── BEST PRACTICES ── */
+  .practices-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-top: 16px;
+    overflow: hidden;
+  }
+  .practices-toggle {
+    padding: 13px 16px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; user-select: none;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--warn); text-transform: uppercase;
+    background: var(--surface2);
+  }
+  .practices-toggle .chev { margin-left: auto; transition: transform .2s; }
+  .practices-toggle.open .chev { transform: rotate(180deg); }
+  .practices-body { display: none; padding: 0 20px 20px; }
+  .practices-body.open { display: block; }
+  .practices-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 800px) { .practices-grid { grid-template-columns: 1fr; } }
+  .practice-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px;
+  }
+  .practice-card h3 {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    color: var(--accent2); text-transform: uppercase; margin-bottom: 10px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .practice-card ul { padding-left: 0; list-style: none; }
+  .practice-card li {
+    font-size: 12px; line-height: 1.7; color: var(--text);
+    padding: 3px 0; padding-left: 14px; position: relative;
+  }
+  .practice-card li::before { content: '▸'; position: absolute; left: 0; color: var(--accent); font-size: 10px; top: 5px; }
+  .practice-card li strong { color: var(--text-bright); }
+  .notice {
+    background: rgba(245,158,11,.07);
+    border: 1px solid rgba(245,158,11,.25);
+    border-radius: 3px;
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--warn);
+    line-height: 1.6;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .workspace { grid-template-columns: 1fr; }
+    .sidebar { grid-row: auto; border-right: none; border-bottom: 1px solid var(--border); max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark"></div>
+  <h1>Panel<span style="color:var(--text-dim)">ize</span></h1>
+  <span>PCB Panelization Calculator v1.0</span>
+  <div class="unit-toggle">
+    <button id="btnIn" class="active" onclick="setUnit('in')">IN</button>
+    <button id="btnMm" onclick="setUnit('mm')">MM</button>
+  </div>
+</header>
+
+<div class="workspace">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <div class="sidebar">
+
+    <!-- Panel Dimensions -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x=".5" y=".5" width="11" height="11" rx="1" stroke="currentColor"/></svg>
+        Panel Dimensions
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="field">
+          <label>Panel Width <span class="hint">(X axis)</span></label>
+          <div class="input-row">
+            <input type="number" id="panelW" value="18" min="0.1" step="0.01">
+            <span class="unit-label" id="unitW">in</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Panel Height <span class="hint">(Y axis)</span></label>
+          <div class="input-row">
+            <input type="number" id="panelH" value="12" min="0.1" step="0.01">
+            <span class="unit-label" id="unitH">in</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Board Dimensions -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="1.5" y="1.5" width="9" height="9" rx="1" stroke="currentColor" stroke-dasharray="2 1"/></svg>
+        Circuit / Board Dimensions
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="field">
+          <label>Board Width</label>
+          <div class="input-row">
+            <input type="number" id="boardW" value="2.0" min="0.01" step="0.01">
+            <span class="unit-label" id="unitBW">in</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Board Height</label>
+          <div class="input-row">
+            <input type="number" id="boardH" value="1.5" min="0.01" step="0.01">
+            <span class="unit-label" id="unitBH">in</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Separation Method -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6h10M6 1v10" stroke="currentColor" stroke-linecap="round"/></svg>
+        Separation Method
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="radio-group">
+          <input type="radio" name="sep" id="sepVscore" value="vscore" checked>
+          <label for="sepVscore">V-Score</label>
+          <input type="radio" name="sep" id="sepTab" value="tab">
+          <label for="sepTab">Tab Routing</label>
+          <input type="radio" name="sep" id="sepBoth" value="both">
+          <label for="sepBoth">Both</label>
+        </div>
+        <div class="field">
+          <label id="spacingLabel">Board Spacing / Kerf</label>
+          <div class="input-row">
+            <input type="number" id="spacing" value="0.05" min="0" step="0.005">
+            <span class="unit-label" id="unitSp">in</span>
+          </div>
+        </div>
+        <div id="tabNotes" style="display:none" class="notice" style="font-size:11px">
+          Tab routing: recommended spacing ≥ 0.100" (2.54mm) to accommodate router bit + breakaway tabs.
+        </div>
+      </div>
+    </div>
+
+    <!-- Rails -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x=".5" y="2.5" width="11" height="7" rx="1" stroke="currentColor"/><line x1=".5" y1="4.5" x2="11.5" y2="4.5" stroke="currentColor"/><line x1=".5" y1="7.5" x2="11.5" y2="7.5" stroke="currentColor"/></svg>
+        Rails
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="checkbox-row"><input type="checkbox" id="railTop" checked onchange="updateRailFields()"><label for="railTop">Top Rail</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="railBot" checked onchange="updateRailFields()"><label for="railBot">Bottom Rail</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="railLeft" onchange="updateRailFields()"><label for="railLeft">Left Rail</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="railRight" onchange="updateRailFields()"><label for="railRight">Right Rail</label></div>
+        <div class="sub-field" id="railWidthFields">
+          <div class="field" id="fieldRailTB">
+            <label>Top / Bottom Rail Width</label>
+            <div class="input-row">
+              <input type="number" id="railTBW" value="0.25" min="0" step="0.01">
+              <span class="unit-label" id="unitRTB">in</span>
+            </div>
+          </div>
+          <div class="field" id="fieldRailLR" style="display:none">
+            <label>Left / Right Rail Width</label>
+            <div class="input-row">
+              <input type="number" id="railLRW" value="0.25" min="0" step="0.01">
+              <span class="unit-label" id="unitRLR">in</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fiducials -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="3" stroke="currentColor"/><circle cx="6" cy="6" r="1" fill="currentColor"/></svg>
+        Fiducials
+        <span class="chevron">▾</span>
+      </div>
+      <div class="section-body">
+        <div class="checkbox-row"><input type="checkbox" id="panelFids" onchange="updateFidFields()"><label for="panelFids">Panel Fiducials (3-point)</label></div>
+        <div class="checkbox-row"><input type="checkbox" id="boardFids" onchange="updateFidFields()"><label for="boardFids">Local Board Fiducials</label></div>
+        <div id="fidFields" style="display:none" class="sub-field">
+          <div class="field">
+            <label>Fiducial Diameter</label>
+            <div class="input-row">
+              <input type="number" id="fidDiam" value="0.04" min="0.01" step="0.005">
+              <span class="unit-label" id="unitFid">in</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Clearance from Board Edge</label>
+            <div class="input-row">
+              <input type="number" id="fidClear" value="0.05" min="0" step="0.005">
+              <span class="unit-label" id="unitFidC">in</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Generate -->
+    <div class="gen-wrap">
+      <button class="btn-generate" onclick="generate()">▶ GENERATE PANEL</button>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ══════════════ CANVAS ══════════════ -->
+  <div class="main-canvas">
+    <div class="canvas-wrap" id="canvasWrap">
+      <div class="canvas-placeholder" id="placeholder">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="margin:0 auto 12px;display:block">
+          <rect x="4" y="4" width="40" height="40" rx="2" stroke="#2a3348" stroke-width="1.5"/>
+          <rect x="10" y="12" width="12" height="10" rx="1" stroke="#2a3348" stroke-dasharray="2 1"/>
+          <rect x="26" y="12" width="12" height="10" rx="1" stroke="#2a3348" stroke-dasharray="2 1"/>
+          <rect x="10" y="26" width="12" height="10" rx="1" stroke="#2a3348" stroke-dasharray="2 1"/>
+          <rect x="26" y="26" width="12" height="10" rx="1" stroke="#2a3348" stroke-dasharray="2 1"/>
+        </svg>
+        <p>Configure inputs and click GENERATE PANEL</p>
+        <p>Visual output will appear here</p>
+      </div>
+      <canvas id="panelCanvas" style="display:none"></canvas>
+      <div class="canvas-stats" id="canvasStats" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════ OUTPUT TABLE ══════════════ -->
+  <div class="main-output">
+    <div class="output-header">
+      <h2>⬡ Step &amp; Repeat — Origin Coordinates</h2>
+      <button class="btn-csv" id="btnCsv" onclick="exportCSV()" disabled>⬇ Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table id="srTable">
+        <thead>
+          <tr>
+            <th>INDEX</th>
+            <th>ROW</th>
+            <th>COL</th>
+            <th>ORIGIN X</th>
+            <th>ORIGIN Y</th>
+            <th>STEP X (PITCH)</th>
+            <th>STEP Y (PITCH)</th>
+            <th>CENTER X</th>
+            <th>CENTER Y</th>
+          </tr>
+        </thead>
+        <tbody id="srBody">
+          <tr><td colspan="9" class="empty-table">No data — generate a panel first</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- BEST PRACTICES -->
+    <div class="practices-section">
+      <div class="practices-toggle" id="practicesToggle" onclick="togglePractices()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor"/><path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" stroke-linecap="round"/></svg>
+        Panelization Best Practices
+        <span class="chev">▾</span>
+      </div>
+      <div class="practices-body" id="practicesBody">
+        <div class="practices-grid">
+
+          <div class="practice-card">
+            <h3>V-Score Guidelines</h3>
+            <ul>
+              <li>Typical V-score depth is <strong>1/3 of board thickness</strong> per side, leaving a thin web for break-out strength.</li>
+              <li>Minimum board width between scores: <strong>≥ 0.100"</strong> (2.54mm) to prevent unintended breakage.</li>
+              <li>Keep traces and copper <strong>≥ 0.025"</strong> (0.635mm) from V-score lines.</li>
+              <li>V-score is only applicable for <strong>straight, parallel cuts</strong> along the full panel edge — no pockets.</li>
+              <li>Board-to-board kerf: <strong>0.030"–0.060"</strong> (0.76–1.52mm) is typical; confirm with fab.</li>
+              <li>Do not V-score boards with <strong>overhanging connectors</strong> that require routing first.</li>
+            </ul>
+          </div>
+
+          <div class="practice-card">
+            <h3>Tab Routing Guidelines</h3>
+            <ul>
+              <li>Router bit diameter is typically <strong>0.062"–0.093"</strong> (1.57–2.36mm); slot width must accommodate this.</li>
+              <li>Use <strong>3–5 tabs per board edge</strong>, minimum tab width <strong>0.040"–0.100"</strong>.</li>
+              <li>Tab spacing should not exceed <strong>1.5"</strong> (38mm) to prevent board sag during assembly.</li>
+              <li>Perforated (mouse-bite) tabs: <strong>0.020"</strong> (0.5mm) holes, 0.020" apart along the tab.</li>
+              <li>Keep SMD pads <strong>≥ 0.100"</strong> (2.54mm) from tab locations to avoid stress cracks.</li>
+              <li>Routing clearance from copper: <strong>≥ 0.010"</strong> (0.254mm) minimum.</li>
+            </ul>
+          </div>
+
+          <div class="practice-card">
+            <h3>Rail Design</h3>
+            <ul>
+              <li>Minimum rail width for <strong>SMT assembly carriers</strong>: 0.200"–0.250" (5–6.35mm).</li>
+              <li>Rails should contain <strong>tooling holes</strong>: typically 0.125" (3.175mm) dia, ≥ 0.200" from edge.</li>
+              <li>Place <strong>panel fiducials</strong> in rails — minimum 3 for global alignment (L-pattern recommended).</li>
+              <li>For conveyor systems, rails must be on the <strong>short axis</strong> of travel direction unless specified.</li>
+              <li>Stiffener rails reduce board flex during high-speed pick-and-place; consider for thin boards <strong>&lt; 0.062"</strong>.</li>
+              <li>Avoid placing component exclusion zones that extend into rails.</li>
+            </ul>
+          </div>
+
+          <div class="practice-card">
+            <h3>Fiducial Marks</h3>
+            <ul>
+              <li>Panel fiducials: <strong>minimum 3</strong>, placed asymmetrically to enforce orientation detection.</li>
+              <li>Recommended fiducial diameter: <strong>0.040"–0.060"</strong> (1.0–1.5mm) copper circle, bare copper.</li>
+              <li>Fiducial clearance (copper-free area): <strong>2× fiducial diameter</strong> around each mark.</li>
+              <li>Local board fiducials should be placed <strong>diagonally opposite</strong> to each other for max precision.</li>
+              <li>Avoid solder mask over fiducials; specify <strong>SM opening = 2× pad diameter</strong>.</li>
+              <li>Minimum 3 fiducials per board for critical or <strong>fine-pitch ICs</strong> (0.4mm pitch and below).</li>
+            </ul>
+          </div>
+
+          <div class="practice-card">
+            <h3>Step & Repeat / Placement</h3>
+            <ul>
+              <li>Origin reference is typically the <strong>lower-left corner</strong> of the panel or first board.</li>
+              <li>Verify X/Y pitch with your screen printer's <strong>repeat mode</strong> or Gerber viewer before production.</li>
+              <li>Board orientation: consider rotating alternating rows <strong>180°</strong> (flip panel) to reduce yield stress if asymmetric boards are used.</li>
+              <li>IPC-7711 recommends confirming centroid data matches pick-and-place <strong>rotation convention</strong> (0° reference may vary by machine).</li>
+              <li>For Yamaha SMT lines, step & repeat pitch is set in <strong>mm</strong>; convert and verify to ±0.001mm.</li>
+              <li>Always perform a <strong>dry-run placement</strong> with an un-pasted bare panel to verify origin before first article.</li>
+            </ul>
+          </div>
+
+          <div class="practice-card">
+            <h3>IPC &amp; Class 3 Considerations</h3>
+            <ul>
+              <li>IPC-A-610 Class 3: solder joint integrity is paramount; minimize panel flex that causes <strong>head-in-pillow / solder bridges</strong> post-reflow.</li>
+              <li>Boards &gt; 6" unsupported span should use <strong>support pins</strong> during reflow to reduce sag.</li>
+              <li>Validate panel warpage <strong>&lt; 0.75%</strong> of diagonal per IPC-SM-782 / IPC-7093 guidelines.</li>
+              <li>Document panel design in your <strong>pFMEA</strong> — separation method, tab strength, and breakout force are failure modes.</li>
+              <li>SPI (3D) should be run on <strong>first and last board</strong> in panel to validate paste volume uniformity edge-to-center.</li>
+              <li>For Class 3, retain <strong>traceability records</strong> of panel lot, oven profile run, and SPI data per panel.</li>
+            </ul>
+          </div>
+
+        </div>
+        <div class="notice">
+          ⚠ Always confirm panelization dimensions, kerf widths, and fiducial requirements with your PCB fabricator and assembly equipment specifications before committing to production panels.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-output -->
+</div><!-- /workspace -->
+
+<script>
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentUnit = 'in';
+let lastResult = null;
+
+// Conversion
+const toMM = v => currentUnit === 'in' ? v * 25.4 : v;
+const toIn = v => currentUnit === 'mm' ? v / 25.4 : v;
+const fmt  = v => (currentUnit === 'in' ? v.toFixed(4) + '"' : v.toFixed(3) + 'mm');
+const fmtN = v => (currentUnit === 'in' ? v.toFixed(4) : v.toFixed(3));
+
+// ─────────────────────────────────────────────
+// UNIT TOGGLE
+// ─────────────────────────────────────────────
+const unitInputIds = ['panelW','panelH','boardW','boardH','spacing','railTBW','railLRW','fidDiam','fidClear'];
+const unitLabelIds = ['unitW','unitH','unitBW','unitBH','unitSp','unitRTB','unitRLR','unitFid','unitFidC'];
+
+function setUnit(u) {
+  if (u === currentUnit) return;
+  const prevUnit = currentUnit;
+  currentUnit = u;
+  document.getElementById('btnIn').classList.toggle('active', u === 'in');
+  document.getElementById('btnMm').classList.toggle('active', u === 'mm');
+
+  // Convert all numeric inputs
+  unitInputIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el || el.value === '') return;
+    const val = parseFloat(el.value);
+    if (isNaN(val)) return;
+    el.value = (prevUnit === 'in' ? (val * 25.4).toFixed(3) : (val / 25.4).toFixed(4));
+  });
+
+  // Update unit labels
+  unitLabelIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = u;
+  });
+
+  // Step hint
+  const sep = document.querySelector('input[name="sep"]:checked').value;
+  updateSepHint(sep);
+}
+
+// ─────────────────────────────────────────────
+// SECTION COLLAPSE
+// ─────────────────────────────────────────────
+function toggleSection(header) {
+  header.classList.toggle('collapsed');
+  header.nextElementSibling.classList.toggle('hidden');
+}
+
+// ─────────────────────────────────────────────
+// SEPARATION METHOD
+// ─────────────────────────────────────────────
+document.querySelectorAll('input[name="sep"]').forEach(r => {
+  r.addEventListener('change', () => updateSepHint(r.value));
+});
+function updateSepHint(v) {
+  const noteEl = document.getElementById('tabNotes');
+  const lbl = document.getElementById('spacingLabel');
+  const spEl = document.getElementById('spacing');
+  if (v === 'vscore') {
+    noteEl.style.display = 'none';
+    lbl.textContent = 'Board Spacing / Kerf';
+  } else {
+    noteEl.style.display = 'block';
+    lbl.textContent = 'Routing Gap';
+    // Suggest min spacing if currently less than recommended
+    const minGap = currentUnit === 'in' ? 0.1 : 2.54;
+    if (parseFloat(spEl.value) < minGap) spEl.value = minGap.toFixed(currentUnit === 'in' ? 3 : 2);
+  }
+}
+
+// ─────────────────────────────────────────────
+// RAIL FIELDS VISIBILITY
+// ─────────────────────────────────────────────
+function updateRailFields() {
+  const top = document.getElementById('railTop').checked;
+  const bot = document.getElementById('railBot').checked;
+  const left = document.getElementById('railLeft').checked;
+  const right = document.getElementById('railRight').checked;
+  document.getElementById('fieldRailTB').style.display = (top || bot) ? 'block' : 'none';
+  document.getElementById('fieldRailLR').style.display = (left || right) ? 'block' : 'none';
+  const anyRail = top || bot || left || right;
+  document.getElementById('railWidthFields').style.display = anyRail ? 'block' : 'none';
+}
+updateRailFields();
+
+// ─────────────────────────────────────────────
+// FIDUCIAL FIELDS
+// ─────────────────────────────────────────────
+function updateFidFields() {
+  const any = document.getElementById('panelFids').checked || document.getElementById('boardFids').checked;
+  document.getElementById('fidFields').style.display = any ? 'block' : 'none';
+}
+
+// ─────────────────────────────────────────────
+// BEST PRACTICES TOGGLE
+// ─────────────────────────────────────────────
+function togglePractices() {
+  const toggle = document.getElementById('practicesToggle');
+  const body = document.getElementById('practicesBody');
+  toggle.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+// ─────────────────────────────────────────────
+// GENERATE
+// ─────────────────────────────────────────────
+function generate() {
+  // Read inputs (in current units, then convert to mm internally)
+  const pW_u = parseFloat(document.getElementById('panelW').value);
+  const pH_u = parseFloat(document.getElementById('panelH').value);
+  const bW_u = parseFloat(document.getElementById('boardW').value);
+  const bH_u = parseFloat(document.getElementById('boardH').value);
+  const sp_u = parseFloat(document.getElementById('spacing').value);
+
+  const railTop   = document.getElementById('railTop').checked;
+  const railBot   = document.getElementById('railBot').checked;
+  const railLeft  = document.getElementById('railLeft').checked;
+  const railRight = document.getElementById('railRight').checked;
+  const railTBW_u = parseFloat(document.getElementById('railTBW').value) || 0;
+  const railLRW_u = parseFloat(document.getElementById('railLRW').value) || 0;
+
+  const panelFids = document.getElementById('panelFids').checked;
+  const boardFids = document.getElementById('boardFids').checked;
+  const fidDiam_u = parseFloat(document.getElementById('fidDiam').value) || 0.04;
+  const fidClear_u= parseFloat(document.getElementById('fidClear').value) || 0.05;
+
+  if (isNaN(pW_u)||isNaN(pH_u)||isNaN(bW_u)||isNaN(bH_u)||isNaN(sp_u)) {
+    alert('Please fill in all required dimensions.');
+    return;
+  }
+
+  // Work in display units for the table (just use raw values)
+  const pW = pW_u, pH = pH_u;
+  const bW = bW_u, bH = bH_u;
+  const sp = sp_u;
+  const rTop  = railTop  ? railTBW_u : 0;
+  const rBot  = railBot  ? railTBW_u : 0;
+  const rLeft = railLeft ? railLRW_u : 0;
+  const rRight= railRight? railLRW_u : 0;
+
+  // Inner usable area
+  const innerW = pW - rLeft - rRight;
+  const innerH = pH - rTop - rBot;
+
+  if (innerW <= 0 || innerH <= 0) {
+    alert('Rails are larger than the panel — reduce rail widths.');
+    return;
+  }
+
+  // How many boards fit?
+  const cols = Math.floor((innerW + sp) / (bW + sp));
+  const rows = Math.floor((innerH + sp) / (bH + sp));
+
+  if (cols < 1 || rows < 1) {
+    alert('Board is larger than the available panel area. Please adjust dimensions.');
+    return;
+  }
+
+  // Step (pitch) values
+  const stepX = bW + sp;
+  const stepY = bH + sp;
+
+  // Total used area (centered in inner space)
+  const usedW = cols * bW + (cols - 1) * sp;
+  const usedH = rows * bH + (rows - 1) * sp;
+  const offsetX = rLeft + (innerW - usedW) / 2;
+  const offsetY = rBot  + (innerH - usedH) / 2;
+
+  // Build placements
+  const placements = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const ox = offsetX + c * stepX;
+      const oy = offsetY + r * stepY;
+      placements.push({
+        index: r * cols + c + 1,
+        row: r + 1,
+        col: c + 1,
+        originX: ox,
+        originY: oy,
+        stepX,
+        stepY,
+        centerX: ox + bW / 2,
+        centerY: oy + bH / 2,
+      });
+    }
+  }
+
+  lastResult = {
+    pW, pH, bW, bH, sp,
+    rTop, rBot, rLeft, rRight,
+    cols, rows, stepX, stepY,
+    offsetX, offsetY, usedW, usedH,
+    panelFids, boardFids,
+    fidDiam: fidDiam_u, fidClear: fidClear_u,
+    placements,
+    sepMethod: document.querySelector('input[name="sep"]:checked').value
+  };
+
+  renderCanvas(lastResult);
+  renderTable(lastResult);
+  document.getElementById('btnCsv').disabled = false;
+}
+
+// ─────────────────────────────────────────────
+// CANVAS DRAWING
+// ─────────────────────────────────────────────
+function renderCanvas(d) {
+  const wrap = document.getElementById('canvasWrap');
+  const placeholder = document.getElementById('placeholder');
+  const canvas = document.getElementById('panelCanvas');
+  const stats = document.getElementById('canvasStats');
+
+  placeholder.style.display = 'none';
+  canvas.style.display = 'block';
+  stats.style.display = 'block';
+
+  const PADDING = 40; // px padding around panel
+  const maxW = wrap.clientWidth  - PADDING * 2;
+  const maxH = Math.min(wrap.clientHeight - PADDING * 2, 520);
+
+  const scaleX = maxW / d.pW;
+  const scaleY = maxH / d.pH;
+  const scale  = Math.min(scaleX, scaleY, 120); // max 120 px/unit
+
+  const cW = d.pW * scale + PADDING * 2;
+  const cH = d.pH * scale + PADDING * 2;
+
+  canvas.width  = cW;
+  canvas.height = cH;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, cW, cH);
+
+  const px = (u) => PADDING + u * scale;
+  const py = (u) => cH - PADDING - u * scale; // flip Y (bottom-left origin)
+
+  // Panel background
+  ctx.fillStyle = '#0f1520';
+  ctx.fillRect(px(0), py(d.pH), d.pW * scale, d.pH * scale);
+
+  // Rails (shaded)
+  ctx.fillStyle = 'rgba(245,158,11,0.09)';
+  if (d.rBot  > 0) ctx.fillRect(px(0),         py(d.rBot),  d.pW*scale, d.rBot*scale);
+  if (d.rTop  > 0) ctx.fillRect(px(0),         py(d.pH),    d.pW*scale, d.rTop*scale);
+  if (d.rLeft > 0) ctx.fillRect(px(0),         py(d.pH),    d.rLeft*scale, d.pH*scale);
+  if (d.rRight> 0) ctx.fillRect(px(d.pW-d.rRight), py(d.pH), d.rRight*scale, d.pH*scale);
+
+  // Rail border lines
+  ctx.strokeStyle = 'rgba(245,158,11,0.35)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([3,3]);
+  if (d.rBot  > 0) { ctx.beginPath(); ctx.moveTo(px(0), py(d.rBot));      ctx.lineTo(px(d.pW), py(d.rBot));      ctx.stroke(); }
+  if (d.rTop  > 0) { ctx.beginPath(); ctx.moveTo(px(0), py(d.pH-d.rTop)); ctx.lineTo(px(d.pW), py(d.pH-d.rTop)); ctx.stroke(); }
+  if (d.rLeft > 0) { ctx.beginPath(); ctx.moveTo(px(d.rLeft), py(0));     ctx.lineTo(px(d.rLeft), py(d.pH));     ctx.stroke(); }
+  if (d.rRight> 0) { ctx.beginPath(); ctx.moveTo(px(d.pW-d.rRight), py(0)); ctx.lineTo(px(d.pW-d.rRight), py(d.pH)); ctx.stroke(); }
+  ctx.setLineDash([]);
+
+  // Board fills and outlines
+  d.placements.forEach(p => {
+    const bx = px(p.originX);
+    const by = py(p.originY + d.bH);
+    const bw = d.bW * scale;
+    const bh = d.bH * scale;
+
+    ctx.fillStyle = 'rgba(0,80,180,0.18)';
+    ctx.fillRect(bx, by, bw, bh);
+
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(bx + 0.6, by + 0.6, bw - 1.2, bh - 1.2);
+
+    // Board index label
+    if (bw > 22 && bh > 14) {
+      ctx.fillStyle = 'rgba(100,160,255,0.7)';
+      ctx.font = `${Math.min(10, bw * 0.18)}px 'Share Tech Mono', monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${p.row},${p.col}`, bx + bw/2, by + bh/2);
+    }
+
+    // Local board fiducials
+    if (d.boardFids) {
+      const fr = Math.max(2, d.fidDiam * scale / 2);
+      const fc = d.fidClear * scale;
+      const fidPositions = [
+        [bx + fc + fr, by + fc + fr],
+        [bx + bw - fc - fr, by + fc + fr],
+        [bx + fc + fr, by + bh - fc - fr],
+      ];
+      fidPositions.forEach(([fx, fy]) => {
+        ctx.beginPath(); ctx.arc(fx, fy, fr, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(245,158,11,0.25)';
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        // crosshair
+        ctx.beginPath();
+        ctx.moveTo(fx - fr*1.6, fy); ctx.lineTo(fx + fr*1.6, fy);
+        ctx.moveTo(fx, fy - fr*1.6); ctx.lineTo(fx, fy + fr*1.6);
+        ctx.strokeStyle = 'rgba(245,158,11,0.5)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      });
+    }
+  });
+
+  // Panel fiducials (3-point L pattern in rail/corner)
+  if (d.panelFids) {
+    const fr = Math.max(3, d.fidDiam * scale / 2);
+    const margin = Math.max(d.rLeft, 0.1) * scale * 0.5 + PADDING;
+    const panelFidPos = [
+      [px(d.rLeft > 0 ? d.rLeft * 0.5 : 0.1), py(d.pH * 0.9)],
+      [px(d.pW * 0.9), py(d.pH - (d.rTop > 0 ? d.rTop * 0.5 : 0.1))],
+      [px(d.rLeft > 0 ? d.rLeft * 0.5 : 0.1), py(d.rBot > 0 ? d.rBot * 0.5 : 0.1)],
+    ];
+    panelFidPos.forEach(([fx, fy]) => {
+      ctx.beginPath(); ctx.arc(fx, fy, fr * 1.2, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(245,158,11,0.15)';
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(fx - fr*2, fy); ctx.lineTo(fx + fr*2, fy);
+      ctx.moveTo(fx, fy - fr*2); ctx.lineTo(fx, fy + fr*2);
+      ctx.strokeStyle = 'rgba(245,158,11,0.7)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    });
+  }
+
+  // Panel outline
+  ctx.strokeStyle = '#00d4aa';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(px(0), py(d.pH), d.pW * scale, d.pH * scale);
+
+  // Origin crosshair
+  ctx.strokeStyle = 'rgba(0,212,170,0.4)';
+  ctx.lineWidth = 0.6;
+  ctx.setLineDash([2,3]);
+  ctx.beginPath();
+  ctx.moveTo(px(0) - 8, py(0)); ctx.lineTo(px(0) + 14, py(0));
+  ctx.moveTo(px(0), py(0) + 8); ctx.lineTo(px(0), py(0) - 14);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dimension labels
+  ctx.fillStyle = '#00d4aa';
+  ctx.font = `10px 'Share Tech Mono', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`${fmtN(d.pW)}${currentUnit}`, px(d.pW/2), py(d.pH) - 6);
+  ctx.save();
+  ctx.translate(px(0) - 8, py(d.pH/2));
+  ctx.rotate(-Math.PI/2);
+  ctx.fillText(`${fmtN(d.pH)}${currentUnit}`, 0, 0);
+  ctx.restore();
+
+  // Origin label
+  ctx.fillStyle = 'rgba(0,212,170,0.6)';
+  ctx.font = `9px 'Share Tech Mono', monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('(0,0)', px(0) + 3, py(0) + 2);
+
+  // Stats overlay
+  const util = ((d.cols * d.rows * d.bW * d.bH) / (d.pW * d.pH) * 100).toFixed(1);
+  stats.innerHTML = `
+    <div><span class="stat-label">PANEL</span><span class="stat-val">${d.cols * d.rows} circuits</span></div>
+    <div><span class="stat-label">ARRAY</span><span class="stat-val">${d.cols} × ${d.rows}</span></div>
+    <div><span class="stat-label">STEP X</span><span class="stat-val">${fmtN(d.stepX)}${currentUnit}</span></div>
+    <div><span class="stat-label">STEP Y</span><span class="stat-val">${fmtN(d.stepY)}${currentUnit}</span></div>
+    <div><span class="stat-label">UTILIZATION</span><span class="stat-val">${util}%</span></div>
+    <div><span class="stat-label">METHOD</span><span class="stat-val">${d.sepMethod.toUpperCase()}</span></div>
+  `;
+}
+
+// ─────────────────────────────────────────────
+// TABLE
+// ─────────────────────────────────────────────
+function renderTable(d) {
+  const tbody = document.getElementById('srBody');
+  tbody.innerHTML = '';
+  d.placements.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${String(p.index).padStart(3,'0')}</td>
+      <td>${p.row}</td>
+      <td>${p.col}</td>
+      <td class="val">${fmtN(p.originX)}</td>
+      <td class="val">${fmtN(p.originY)}</td>
+      <td class="val">${fmtN(p.stepX)}</td>
+      <td class="val">${fmtN(p.stepY)}</td>
+      <td>${fmtN(p.centerX)}</td>
+      <td>${fmtN(p.centerY)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─────────────────────────────────────────────
+// CSV EXPORT
+// ─────────────────────────────────────────────
+function exportCSV() {
+  if (!lastResult) return;
+  const u = currentUnit;
+  const rows = [
+    ['PCB Panelization Calculator — Step & Repeat Data'],
+    [`Panel Size: ${fmtN(lastResult.pW)} x ${fmtN(lastResult.pH)} ${u}`],
+    [`Board Size: ${fmtN(lastResult.bW)} x ${fmtN(lastResult.bH)} ${u}`],
+    [`Array: ${lastResult.cols} cols x ${lastResult.rows} rows  |  Total: ${lastResult.cols * lastResult.rows} circuits`],
+    [`Separation: ${lastResult.sepMethod}  |  Spacing: ${fmtN(lastResult.sp)} ${u}`],
+    [],
+    [`INDEX,ROW,COL,ORIGIN_X (${u}),ORIGIN_Y (${u}),STEP_X (${u}),STEP_Y (${u}),CENTER_X (${u}),CENTER_Y (${u})`],
+    ...lastResult.placements.map(p => [
+      String(p.index).padStart(3,'0'), p.row, p.col,
+      fmtN(p.originX), fmtN(p.originY),
+      fmtN(p.stepX), fmtN(p.stepY),
+      fmtN(p.centerX), fmtN(p.centerY)
+    ].join(','))
+  ];
+  const csv = rows.map(r => Array.isArray(r) ? r : r).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `panel_step_repeat_${lastResult.cols}x${lastResult.rows}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
