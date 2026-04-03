@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What AI Actually Does — From Chris</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F5F0E8;
+      --cream-dark: #EDE6D8;
+      --ink: #161622;
+      --ink-soft: #2E2E42;
+      --gold: #C8912A;
+      --gold-light: #E2AA45;
+      --gold-pale: #F5E8CC;
+      --green: #1F5C3A;
+      --white: #FFFFFF;
+      --gray: #8A8A9A;
+      --shadow-sm: 0 2px 12px rgba(22,22,34,0.06);
+      --shadow-md: 0 8px 32px rgba(22,22,34,0.10);
+      --shadow-lg: 0 20px 60px rgba(22,22,34,0.14);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    /* ─── TOPBAR ─── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 32px;
+      background: rgba(22,22,34,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(200,145,42,0.2);
+    }
+    .topbar-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      color: var(--gold-light);
+      letter-spacing: 0.04em;
+    }
+    .topbar-tag {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .topbar-nav {
+      display: flex;
+      gap: 28px;
+    }
+    .topbar-nav a {
+      color: rgba(255,255,255,0.55);
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .topbar-nav a:hover { color: var(--gold-light); }
+
+    /* ─── HERO ─── */
+    .hero {
+      min-height: 100vh;
+      background: var(--ink);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 120px 32px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(200,145,42,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(31,92,58,0.10) 0%, transparent 50%);
+    }
+
+    .hero-noise {
+      position: absolute;
+      inset: 0;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.2s forwards;
+      position: relative;
+    }
+    .hero-eyebrow::before, .hero-eyebrow::after {
+      content: '—';
+      margin: 0 10px;
+      opacity: 0.5;
+    }
+
+    .hero-headline {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(3rem, 8vw, 6.5rem);
+      font-weight: 900;
+      line-height: 1.05;
+      color: var(--white);
+      max-width: 900px;
+      margin-bottom: 28px;
+      opacity: 0;
+      animation: fadeUp 0.9s ease 0.4s forwards;
+      position: relative;
+    }
+
+    .hero-headline em {
+      font-style: italic;
+      color: var(--gold-light);
+    }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-weight: 300;
+      color: rgba(255,255,255,0.6);
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.9s ease 0.6s forwards;
+      position: relative;
+    }
+
+    .hero-from {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      background: rgba(200,145,42,0.12);
+      border: 1px solid rgba(200,145,42,0.3);
+      border-radius: 100px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--gold-light);
+      opacity: 0;
+      animation: fadeUp 0.9s ease 0.8s forwards;
+      position: relative;
+    }
+    .hero-from::before {
+      content: '◆';
+      font-size: 0.5rem;
+    }
+
+    .hero-scroll {
+      position: absolute;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      animation: fadeUp 1s ease 1.2s forwards;
+    }
+    .hero-scroll span {
+      font-size: 0.65rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.3);
+    }
+    .scroll-line {
+      width: 1px;
+      height: 40px;
+      background: linear-gradient(to bottom, var(--gold), transparent);
+      animation: scrollPulse 2s ease-in-out infinite;
+    }
+
+    /* ─── SECTION BASE ─── */
+    section {
+      padding: 100px 32px;
+    }
+
+    .section-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::after {
+      content: '';
+      display: block;
+      height: 1px;
+      width: 48px;
+      background: var(--gold);
+      opacity: 0.5;
+    }
+
+    .section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--gray);
+      max-width: 560px;
+      line-height: 1.7;
+      margin-bottom: 48px;
+    }
+
+    /* ─── PROMPT/RESPONSE CARD ─── */
+    .convo-block {
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      border: 1px solid rgba(22,22,34,0.06);
+    }
+
+    .convo-prompt {
+      padding: 20px 28px;
+      background: var(--cream-dark);
+      border-bottom: 1px solid rgba(22,22,34,0.06);
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .prompt-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--ink-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .prompt-text {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--ink-soft);
+      line-height: 1.55;
+      font-style: italic;
+    }
+
+    .convo-response {
+      padding: 32px 28px;
+    }
+
+    .response-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .claude-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+    }
+    .claude-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .response-body h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 24px 0 10px;
+    }
+    .response-body h3:first-child { margin-top: 0; }
+
+    .response-body p {
+      font-size: 0.94rem;
+      line-height: 1.75;
+      color: var(--ink-soft);
+      margin-bottom: 14px;
+    }
+
+    .response-body ul {
+      list-style: none;
+      margin: 10px 0 18px;
+    }
+    .response-body ul li {
+      font-size: 0.93rem;
+      line-height: 1.65;
+      color: var(--ink-soft);
+      padding: 7px 0 7px 20px;
+      position: relative;
+      border-bottom: 1px solid rgba(22,22,34,0.04);
+    }
+    .response-body ul li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: var(--gold);
+      font-size: 0.7rem;
+      top: 10px;
+    }
+    .response-body ul li strong {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* Price table */
+    .price-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 0.88rem;
+    }
+    .price-table th {
+      background: var(--cream);
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gray);
+      border-bottom: 2px solid var(--cream-dark);
+    }
+    .price-table td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--cream-dark);
+      color: var(--ink-soft);
+    }
+    .price-table tr:last-child td { border-bottom: none; }
+    .price-table td:last-child {
+      font-weight: 600;
+      color: var(--green);
+    }
+
+    .alert-box {
+      background: var(--gold-pale);
+      border-left: 3px solid var(--gold);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 16px 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--ink-soft);
+    }
+    .alert-box strong { color: var(--ink); }
+
+    /* ─── CRYPTO SECTION ─── */
+    .section-dark {
+      background: var(--ink);
+      padding: 100px 32px;
+    }
+    .section-dark .section-title { color: var(--white); }
+    .section-dark .section-desc { color: rgba(255,255,255,0.45); }
+    .section-dark .section-label { color: var(--gold-light); }
+    .section-dark .section-label::after { background: var(--gold-light); }
+
+    .section-dark .convo-block {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: none;
+    }
+    .section-dark .convo-prompt {
+      background: rgba(255,255,255,0.06);
+      border-bottom-color: rgba(255,255,255,0.06);
+    }
+    .section-dark .prompt-text { color: rgba(255,255,255,0.75); }
+    .section-dark .prompt-avatar { background: rgba(255,255,255,0.12); }
+    .section-dark .response-body h3 { color: var(--white); }
+    .section-dark .response-body p { color: rgba(255,255,255,0.65); }
+    .section-dark .response-body ul li { color: rgba(255,255,255,0.65); border-bottom-color: rgba(255,255,255,0.05); }
+    .section-dark .response-body ul li strong { color: rgba(255,255,255,0.9); }
+    .section-dark .alert-box {
+      background: rgba(200,145,42,0.12);
+      border-left-color: var(--gold);
+      color: rgba(255,255,255,0.7);
+    }
+    .section-dark .alert-box strong { color: var(--gold-light); }
+
+    .crypto-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0;
+    }
+    .crypto-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .crypto-card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .crypto-card p {
+      font-size: 0.88rem !important;
+      color: rgba(255,255,255,0.6) !important;
+      line-height: 1.6 !important;
+      margin: 0 !important;
+    }
+
+    /* ─── SPORTS SECTION ─── */
+    .section-cream {
+      background: var(--cream);
+    }
+
+    /* ─── QUICK HITS ─── */
+    .section-white {
+      background: var(--white);
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .quick-card {
+      background: var(--cream);
+      border-radius: 14px;
+      padding: 28px;
+      border: 1px solid var(--cream-dark);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .quick-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .quick-card-icon {
+      font-size: 1.6rem;
+      margin-bottom: 16px;
+    }
+    .quick-card-topic {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 10px;
+    }
+    .quick-card-q {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 14px;
+      line-height: 1.4;
+      font-style: italic;
+    }
+    .quick-card-a {
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: var(--ink-soft);
+    }
+    .quick-card-a strong {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    /* ─── FOOTER ─── */
+    .footer {
+      background: var(--ink);
+      padding: 80px 32px;
+      text-align: center;
+    }
+    .footer-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 900;
+      color: var(--white);
+      margin-bottom: 16px;
+    }
+    .footer-title em { color: var(--gold-light); font-style: italic; }
+    .footer-sub {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.45);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+    .footer-link {
+      display: inline-block;
+      padding: 14px 36px;
+      background: var(--gold);
+      color: var(--white);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-radius: 100px;
+      letter-spacing: 0.04em;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .footer-link:hover {
+      background: var(--gold-light);
+      transform: translateY(-2px);
+    }
+    .footer-credit {
+      margin-top: 60px;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 0.1em;
+    }
+
+    /* ─── FADE-UP ANIMATION ─── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .fade-up.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .fade-up.delay-1 { transition-delay: 0.1s; }
+    .fade-up.delay-2 { transition-delay: 0.2s; }
+    .fade-up.delay-3 { transition-delay: 0.35s; }
+
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scrollPulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 640px) {
+      .topbar-nav { display: none; }
+      section { padding: 72px 20px; }
+      .section-dark, .section-cream, .section-white { padding: 72px 20px; }
+      .convo-response { padding: 24px 18px; }
+      .convo-prompt { padding: 16px 18px; }
+      .crypto-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-brand">Claude × Friends</div>
+    <div class="topbar-tag">A demo from Chris</div>
+    <nav class="topbar-nav">
+      <a href="#bats">Bats</a>
+      <a href="#crypto">Crypto</a>
+      <a href="#sports">Sports</a>
+      <a href="#more">More</a>
+    </nav>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-noise"></div>
+    <div class="hero-eyebrow">What AI actually does</div>
+    <h1 class="hero-headline">
+      This isn't <em>autocomplete.</em><br>
+      This is a thinking partner.
+    </h1>
+    <p class="hero-sub">
+      The AI you've been seeing generate images is a calculator. Claude reads, reasons, and gives you answers that actually hold up. I made this page so you could see for yourself.
+    </p>
+    <div class="hero-from">Curated by Chris, with Claude</div>
+    <div class="hero-scroll">
+      <div class="scroll-line"></div>
+      <span>Scroll</span>
+    </div>
+  </section>
+
+  <!-- ─── BATS SECTION ─── -->
+  <section id="bats" style="background: var(--white);">
+    <div class="section-inner">
+      <p class="section-label fade-up">The Hook</p>
+      <h2 class="section-title fade-up delay-1">Someone in the chat was looking for a bat deal.</h2>
+      <p class="section-desc fade-up delay-2">So I asked. This is what came back — in about four seconds.</p>
+
+      <div class="convo-block fade-up delay-3">
+        <div class="convo-prompt">
+          <div class="prompt-avatar">You</div>
+          <p class="prompt-text">"Where's the best place to find cheap Easton or Louisville Slugger bats right now? I don't want to overpay and I'm not sure what models are actually worth buying used."</p>
+        </div>
+        <div class="convo-response">
+          <div class="response-header">
+            <div class="claude-dot"></div>
+            <span class="claude-label">Claude</span>
+          </div>
+          <div class="response-body">
+            <h3>Best Places to Shop (in order of value)</h3>
+            <ul>
+              <li><strong>SidelineSwap</strong> — The #1 resale market for baseball and softball gear. Easton Ghost and Louisville Meta bats regularly show up 30–50% below retail. Filter by "like new" condition and sort by recently listed. Fast-moving inventory.</li>
+              <li><strong>Facebook Marketplace</strong> — Search locally first. Parents selling after a season or size change is free money. Look for listings that say "only used one season" — usually honest. Lowball by 15%, they expect it.</li>
+              <li><strong>eBay</strong> — Best for hunting a specific model. Always check completed sales (not current listings) to see what bats actually sold for, not just the ask price. This is the move most people skip.</li>
+              <li><strong>Play It Again Sports</strong> — Physical store, you can tap the barrel before buying. Especially good for youth bats. Staff usually knows their inventory well.</li>
+              <li><strong>Dick's Clearance (Oct–Nov)</strong> — End of season, they blow out prior-year models at 40–60% off. Functionally identical to current year. Set a reminder.</li>
+            </ul>
+
+            <h3>Best Value Models Right Now</h3>
+            <table class="price-table">
+              <thead>
+                <tr>
+                  <th>Bat</th>
+                  <th>Type</th>
+                  <th>Retail</th>
+                  <th>Target Used Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Easton Ghost Advanced (-10/-11)</td>
+                  <td>Fastpitch</td>
+                  <td>$350–$400</td>
+                  <td>$130–$185</td>
+                </tr>
+                <tr>
+                  <td>Louisville Slugger Meta (-3)</td>
+                  <td>BBCOR / High School</td>
+                  <td>$350–$500</td>
+                  <td>$150–$240</td>
+                </tr>
+                <tr>
+                  <td>Easton ADV 360 (-10 USA)</td>
+                  <td>Youth / Little League</td>
+                  <td>$180–$220</td>
+                  <td>$75–$110</td>
+                </tr>
+                <tr>
+                  <td>Louisville Slugger Solo (-11 USA)</td>
+                  <td>Youth — lightweight</td>
+                  <td>$130–$160</td>
+                  <td>$45–$70</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h3>Red Flags When Buying Used</h3>
+            <ul>
+              <li><strong>Cracks near the barrel or end cap</strong> — walk away immediately.</li>
+              <li><strong>Dead spots</strong> — tap the barrel firmly, top to bottom. It should sound consistent. A dull thud in one spot means the bat is dead inside.</li>
+              <li><strong>Loose end cap</strong> — grab and twist it. Any rotation is a problem.</li>
+              <li><strong>Missing certification stamp</strong> — USA, USSSA, or BBCOR must match your league rules. Check the taper near the handle.</li>
+            </ul>
+
+            <div class="alert-box">
+              <strong>Pro move:</strong> When you find a bat you like on SidelineSwap, search that exact model on eBay completed sales first. If the asking price is at or below the eBay average, buy immediately. If it's above, send an offer. Most sellers on SidelineSwap are parents trying to recoup — they'll take 10–15% less without much pushback.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── CRYPTO SECTION ─── -->
+  <section id="crypto" class="section-dark">
+    <div class="section-inner">
+      <p class="section-label fade-up">Crypto & Markets</p>
+      <h2 class="section-title fade-up delay-1">The group chat asks. Claude thinks out loud.</h2>
+      <p class="section-desc fade-up delay-2">Not financial advice — reasoning. There's a difference, and that difference is everything.</p>
+
+      <div class="convo-block fade-up delay-3">
+        <div class="convo-prompt">
+          <div class="prompt-avatar" style="background: rgba(200,145,42,0.2); color: var(--gold-light);">You</div>
+          <p class="prompt-text">"I've been holding Bitcoin since 2021 and I'm still not back to my original entry. Should I be worried? Do I hold or do something different?"</p>
+        </div>
+        <div class="convo-response">
+          <div class="response-header">
+            <div class="claude-dot"></div>
+            <span class="claude-label">Claude</span>
+          </div>
+          <div class="response-body">
+            <p>The honest answer depends on one thing: <strong>why you bought in 2021</strong> — and whether that reason has actually changed. Most people conflate "I'm not profitable yet" with "I was wrong." Those are very different problems.</p>
+
+            <div class="crypto-grid">
+              <div class="crypto-card">
+                <div class="crypto-card-label">If your thesis was long-term</div>
+                <p>Bitcoin as a global store of value over 10–20 years — nothing material has changed. FTX, the ETF approvals, the 2024 halving — these all fit within the expected volatility of an asset still finding its price. You're inside a normal cycle. The 2021 peak was euphoria. This is consolidation.</p>
+              </div>
+              <div class="crypto-card">
+                <div class="crypto-card-label">If your thesis was short-term</div>
+                <p>Then the honest confrontation is timeline mismatch, not crypto itself. Bitcoin rarely rewards a 1–2 year horizon. If you bought expecting to sell higher within a year or two, the exit question becomes: has enough time passed to change the bet size or time frame?</p>
+              </div>
+            </div>
+
+            <h3>What's Actually Different Since 2021</h3>
+            <ul>
+              <li><strong>Spot ETFs are live (Jan 2024)</strong> — Institutional buying through ETFs changed the demand structure. Less retail-driven volatility, more slow accumulation from large balance sheets. That's structurally bullish over time.</li>
+              <li><strong>The 2024 halving happened</strong> — Supply cut in half. Historically, 12–18 month bull cycles follow. We're inside that window now.</li>
+              <li><strong>Macro is shifting</strong> — Bitcoin correlates with risk assets when rates are high and liquidity is tight. When central banks ease, it decouples. Watch M2 money supply trends, not just BTC price charts.</li>
+            </ul>
+
+            <div class="alert-box">
+              <strong>The one thing most long-term holders get wrong:</strong> They sell at the first sign of fear after surviving the worst of the drawdown. If your position is sized right — meaning you'd be okay if it went to zero — then the only real question is whether your thesis is intact. For most 2021 buyers with a long view, it is.
+            </div>
+
+            <p style="margin-top: 8px;">Size matters more than timing here. The right amount is whatever lets you hold with indifference — not desperation, not hope. That's the actual edge.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── SPORTS / PARENTING SECTION ─── -->
+  <section id="sports" class="section-cream">
+    <div class="section-inner">
+      <p class="section-label fade-up">Sports & Parenting</p>
+      <h2 class="section-title fade-up delay-1">The questions you're actually asking about your kids.</h2>
+      <p class="section-desc fade-up delay-2">Not generic advice from a parenting blog. Actual reasoning informed by sports science, development research, and real baseball culture.</p>
+
+      <div class="convo-block fade-up delay-3">
+        <div class="convo-prompt">
+          <div class="prompt-avatar">You</div>
+          <p class="prompt-text">"My 12-year-old is decent at both hitting and pitching. His coach wants him to specialize in pitching and drop hitting. Should I listen to him?"</p>
+        </div>
+        <div class="convo-response">
+          <div class="response-header">
+            <div class="claude-dot"></div>
+            <span class="claude-label">Claude</span>
+          </div>
+          <div class="response-body">
+            <p>This is one of the genuinely important decisions in youth baseball and the research is clear enough that I'll lead with it: <strong>early specialization has a cost</strong>, and 12 is early.</p>
+
+            <h3>What the Research Shows</h3>
+            <p>The American Orthopaedic Society for Sports Medicine has published extensively on this. Youth pitchers who throw year-round without structured rest have significantly higher rates of UCL injuries (Tommy John territory) and shoulder impingement before the arm finishes developing — which is typically 15–17. The rotator cuff and UCL are still maturing at 12. Load them like an adult arm and you're rolling dice.</p>
+
+            <h3>What Elite Programs Actually Do</h3>
+            <ul>
+              <li><strong>Resist specialization before 14–15</strong> — The feeder programs for high school and travel ball actively want kids who can do multiple things. A two-way player at 12 is a more attractive prospect at 15 than a specialist who burned out or got injured.</li>
+              <li><strong>Evaluate the coach's motive</strong> — Is this about your son's development, or does the team need a pitcher right now? Those are different conversations. A good coach making a developmental call will explain the long-term reasoning. A coach solving a roster problem might not.</li>
+              <li><strong>Pitch count limits matter more than position</strong> — The question isn't really "pitcher vs. hitter." It's "how many pitches per week, with how much rest?" Pitching with limits while still hitting is completely manageable.</li>
+            </ul>
+
+            <div class="alert-box">
+              <strong>The bottom line:</strong> A 12-year-old with a live arm who can also hit is a better high school prospect than a one-dimensional pitcher who peaked early. Keep both tools sharp. If he loves pitching and wants to commit at 15 or 16, that's the right and natural time for that conversation. Not now.
+            </div>
+
+            <p>Ask the coach: <em>"What does a pitch count and rest protocol look like if we go this direction? And can he keep his bat in the lineup?"</em> The answer will tell you everything you need to know about whether this is the right coach to follow.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── QUICK HITS ─── -->
+  <section id="more" class="section-white">
+    <div class="section-inner">
+      <p class="section-label fade-up">The Range</p>
+      <h2 class="section-title fade-up delay-1">It's the same conversation, across everything.</h2>
+      <p class="section-desc fade-up delay-2">Whatever the group chat is talking about — Claude can go deep on it.</p>
+
+      <div class="quick-grid">
+
+        <div class="quick-card fade-up">
+          <div class="quick-card-icon">🍳</div>
+          <div class="quick-card-topic">Cooking</div>
+          <div class="quick-card-q">"What do I make for 8 people that's impressive but doesn't take 4 hours?"</div>
+          <div class="quick-card-a">
+            <strong>Birria tacos.</strong> The consommé braises overnight in 20 minutes of active work. The day of, you're just dipping and searing. It looks like you cooked all day. You didn't. Serve with dipping bowls and everyone feels like they're at a restaurant. Bonus: leftovers are better than the original.
+          </div>
+        </div>
+
+        <div class="quick-card fade-up delay-1">
+          <div class="quick-card-icon">🎬</div>
+          <div class="quick-card-topic">Video / Photography</div>
+          <div class="quick-card-q">"How do I make my videos look more cinematic without spending money on gear?"</div>
+          <div class="quick-card-a">
+            <strong>Three moves that cost nothing:</strong> (1) Lock your frame — no handholding. Shaky footage looks amateur regardless of camera. (2) Shoot in the hour after sunrise or before sunset. Flat midday light kills footage. (3) Move slower than you think you need to — in editing, slow it down 20% more. That's where cinematic lives.
+          </div>
+        </div>
+
+        <div class="quick-card fade-up delay-2">
+          <div class="quick-card-icon">🎵</div>
+          <div class="quick-card-topic">Music</div>
+          <div class="quick-card-q">"I want to start making beats but I have no idea where to actually begin."</div>
+          <div class="quick-card-a">
+            <strong>One week, one tool:</strong> GarageBand is free and genuinely capable. Don't start with a full beat — start with a 4-bar loop with just a kick and snare. When that groove feels right, add bass. Add melody last. The mistake everyone makes is starting with too many elements and losing the rhythm foundation before it's solid.
+          </div>
+        </div>
+
+        <div class="quick-card fade-up">
+          <div class="quick-card-icon">📊</div>
+          <div class="quick-card-topic">Research</div>
+          <div class="quick-card-q">"Is it worth refinancing my mortgage right now or should I wait?"</div>
+          <div class="quick-card-a">
+            <strong>Run the break-even math first.</strong> Take your monthly savings from the new rate and divide it into total closing costs. That's your break-even month. If you're moving or selling before that — don't refi. If rates drop more than 1% below yours and you're staying 5+ years — it's usually worth it. But the real question is: what do you plan to do with the monthly savings?
+          </div>
+        </div>
+
+        <div class="quick-card fade-up delay-1">
+          <div class="quick-card-icon">⚾</div>
+          <div class="quick-card-topic">Sports Take</div>
+          <div class="quick-card-q">"What actually makes a good Little League coach? Not just stats, but the real stuff."</div>
+          <div class="quick-card-a">
+            <strong>Three non-negotiables:</strong> (1) He talks to kids, not at them. (2) He remembers names fast and uses them. (3) He has a plan for the kid who's struggling, not just the star. Everything else is mechanics. The coach who wins championships but loses kids to the sport before high school is a bad coach. Full stop.
+          </div>
+        </div>
+
+        <div class="quick-card fade-up delay-2">
+          <div class="quick-card-icon">🧠</div>
+          <div class="quick-card-topic">The Meta Question</div>
+          <div class="quick-card-q">"Why is Claude different from just Googling something?"</div>
+          <div class="quick-card-a">
+            <strong>Google returns pages. Claude builds an answer.</strong> When you Google "cheap baseball bats," you get 40 links and a sponsored ad. When you ask Claude, you get the actual reasoning — ranked by your situation, with red flags called out, with the one move most people skip explained clearly. It reads your question and thinks. That's the difference.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── FOOTER ─── -->
+  <footer class="footer">
+    <h2 class="footer-title fade-up">Ready to <em>try it?</em></h2>
+    <p class="footer-sub fade-up delay-1">
+      Claude is free to start. No install, no tech knowledge needed. Just open a tab and ask it something you've been meaning to figure out.
+    </p>
+    <a class="footer-link fade-up delay-2" href="https://claude.ai" target="_blank" rel="noopener">Open Claude → claude.ai</a>
+    <div class="footer-credit">Made by Chris · Powered by Claude · Anthropic</div>
+  </footer>
+
+  <script>
+    // Intersection Observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.fade-up').forEach(el => {
+      // Skip hero elements (already animated via CSS keyframes)
+      if (!el.closest('.hero')) {
+        observer.observe(el);
+      }
+    });
+  </script>
+</body>
+</html>
